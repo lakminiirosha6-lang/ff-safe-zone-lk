@@ -1,0 +1,6 @@
+{
+  "name": "FF Safe Zone LK",
+  "description": "Sri Lanka Free Fire community verification portal. Search sellers, verify trusted middlemen, check scam blacklist, and report fraudsters.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
