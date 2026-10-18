@@ -86,6 +86,18 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Zone 3: Primary Action & Hidden Admin Button */}
           <div className="flex items-center gap-3 shrink-0">
+            {/* Contact Admin WhatsApp Link (+94768303937) */}
+            <a
+              href="https://wa.me/94768303937"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden sm:inline-flex px-3 py-1.5 text-xs font-semibold text-green-300 bg-green-950/40 border border-green-500/40 hover:bg-green-900/40 rounded items-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
+              title="Contact Founder / Admin on WhatsApp (+94 76 830 3937)"
+            >
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+              <span>WhatsApp Admin</span>
+            </a>
+
             {/* Report Scam Button */}
             <button
               onClick={onOpenReportModal}

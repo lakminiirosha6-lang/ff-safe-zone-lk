@@ -17,6 +17,7 @@ export const DEFAULT_TRUSTED_SELLERS: TrustedSeller[] = [
     badgeLevel: 'Master',
     isOfficialMiddleman: true,
     notes: 'Verified Sri Lanka Free Fire Community Chief Escrow Middleman since 2022. Over 800+ safe deals verified.',
+    likes: 312,
   },
   {
     id: 'ts-2',
@@ -32,6 +33,7 @@ export const DEFAULT_TRUSTED_SELLERS: TrustedSeller[] = [
     badgeLevel: 'Master',
     isOfficialMiddleman: false,
     notes: 'Direct Garena official top-up partner. Fast 2-minute instant delivery via Player ID.',
+    likes: 245,
   },
   {
     id: 'ts-3',
@@ -47,6 +49,7 @@ export const DEFAULT_TRUSTED_SELLERS: TrustedSeller[] = [
     badgeLevel: 'Diamond',
     isOfficialMiddleman: false,
     notes: 'All accounts verified original Gmail/FB bind change with 30-day recovery warranty.',
+    likes: 184,
   },
   {
     id: 'ts-4',
@@ -62,6 +65,7 @@ export const DEFAULT_TRUSTED_SELLERS: TrustedSeller[] = [
     badgeLevel: 'Diamond',
     isOfficialMiddleman: true,
     notes: 'Official Middleman for Colombo & Gampaha FF competitive scrims and account transfers.',
+    likes: 210,
   },
   {
     id: 'ts-5',
@@ -77,6 +81,7 @@ export const DEFAULT_TRUSTED_SELLERS: TrustedSeller[] = [
     badgeLevel: 'Gold',
     isOfficialMiddleman: false,
     notes: 'Weekly membership, Level Up Pass and Special Airdrops instant recharge.',
+    likes: 128,
   },
   {
     id: 'ts-6',
@@ -92,6 +97,7 @@ export const DEFAULT_TRUSTED_SELLERS: TrustedSeller[] = [
     badgeLevel: 'Gold',
     isOfficialMiddleman: false,
     notes: 'Leader of Team Ceylon Titans. Organizes verified custom tournaments and community trades.',
+    likes: 96,
   }
 ];
 
@@ -111,6 +117,7 @@ export const DEFAULT_SCAM_RECORDS: ScamRecord[] = [
     dateReported: '2024-03-12',
     status: 'Confirmed Scammer',
     reporterInfo: 'Victim: Chathura (071xxxxxxx)',
+    likes: 185,
   },
   {
     id: 'scam-2',
@@ -127,6 +134,7 @@ export const DEFAULT_SCAM_RECORDS: ScamRecord[] = [
     dateReported: '2024-04-05',
     status: 'Confirmed Scammer',
     reporterInfo: 'Victim: Nuwan Kumara',
+    likes: 142,
   },
   {
     id: 'scam-3',
@@ -143,6 +151,7 @@ export const DEFAULT_SCAM_RECORDS: ScamRecord[] = [
     dateReported: '2024-06-20',
     status: 'Banned Criminal',
     reporterInfo: 'Multiple community victims',
+    likes: 112,
   },
   {
     id: 'scam-4',
@@ -159,6 +168,7 @@ export const DEFAULT_SCAM_RECORDS: ScamRecord[] = [
     dateReported: '2024-08-14',
     status: 'Under Police Complaint',
     reporterInfo: 'Reported to CERT / Cyber Crimes Division',
+    likes: 89,
   }
 ];
 

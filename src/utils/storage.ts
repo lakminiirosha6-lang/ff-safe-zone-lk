@@ -123,6 +123,57 @@ export function deleteTrustedSeller(id: string): boolean {
   return true;
 }
 
+export function convertSellerToScammer(
+  sellerId: string,
+  details: {
+    scamAmountLkr?: number;
+    scamType?: ScamType;
+    incidentDetails: string;
+    proofUrls?: string[];
+  }
+): { success: boolean; scamRecord?: ScamRecord } {
+  const sellers = getTrustedSellers();
+  const seller = sellers.find((s) => s.id === sellerId);
+  if (!seller) return { success: false };
+
+  // Remove from trusted sellers
+  const updatedSellers = sellers.filter((s) => s.id !== sellerId);
+  saveTrustedSellers(updatedSellers);
+
+  // Add to scam records
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+  const allProofs = [...(seller.photos || []), ...(details.proofUrls || [])];
+  if (seller.logoUrl && !allProofs.includes(seller.logoUrl)) {
+    allProofs.unshift(seller.logoUrl);
+  }
+
+  const newScam: ScamRecord = {
+    id: `scam-${Date.now()}`,
+    name: `${seller.name} (Ex-Trusted)`,
+    aliases: [seller.name],
+    whatsapp: seller.whatsapp,
+    facebookUrl: seller.facebookUrl,
+    freefireUid: seller.freefireUid,
+    bankDetails: seller.paymentMethods.join(', '),
+    scamAmountLkr: details.scamAmountLkr || 0,
+    scamType: details.scamType || 'Account Recovery Fraud (Retrieved after sale)',
+    incidentDetails: details.incidentDetails || 'Previously verified seller who went rogue and scammed clients.',
+    proofUrls: allProofs,
+    avatarUrl: seller.logoUrl || (allProofs.length > 0 ? allProofs[0] : undefined),
+    dateReported: dateStr,
+    status: 'Confirmed Scammer',
+    reporterInfo: 'Demoted by Admin from Trusted Registry',
+  };
+
+  const scams = getScamRecords();
+  scams.unshift(newScam);
+  saveScamRecords(scams);
+
+  return { success: true, scamRecord: newScam };
+}
+
 // Scam Blacklist Records
 export function getScamRecords(): ScamRecord[] {
   try {
@@ -308,3 +359,90 @@ export function importBackupJson(jsonString: string): { success: boolean; messag
     return { success: false, message: `Import failed: ${errorMsg}` };
   }
 }
+
+const LIKES_STORAGE_KEY = 'ff_liked_items';
+
+export function getLikedIds(): { sellers: string[]; scams: string[] } {
+  try {
+    const raw = localStorage.getItem(LIKES_STORAGE_KEY);
+    if (!raw) return { sellers: [], scams: [] };
+    const parsed = JSON.parse(raw);
+    return {
+      sellers: Array.isArray(parsed.sellers) ? parsed.sellers : [],
+      scams: Array.isArray(parsed.scams) ? parsed.scams : [],
+    };
+  } catch {
+    return { sellers: [], scams: [] };
+  }
+}
+
+export function saveLikedIds(liked: { sellers: string[]; scams: string[] }): void {
+  localStorage.setItem(LIKES_STORAGE_KEY, JSON.stringify(liked));
+}
+
+export function toggleSellerLike(id: string): { likes: number; isLiked: boolean } {
+  const sellers = getTrustedSellers();
+  const index = sellers.findIndex((s) => s.id === id);
+  if (index === -1) return { likes: 0, isLiked: false };
+
+  const likedData = getLikedIds();
+  const isCurrentlyLiked = likedData.sellers.includes(id);
+
+  let currentLikes = sellers[index].likes ?? 42;
+  if (isCurrentlyLiked) {
+    currentLikes = Math.max(0, currentLikes - 1);
+    likedData.sellers = likedData.sellers.filter((sId) => sId !== id);
+  } else {
+    currentLikes += 1;
+    likedData.sellers.push(id);
+  }
+
+  sellers[index].likes = currentLikes;
+  saveTrustedSellers(sellers);
+  saveLikedIds(likedData);
+
+  return { likes: currentLikes, isLiked: !isCurrentlyLiked };
+}
+
+export function toggleScamLike(id: string): { likes: number; isLiked: boolean } {
+  const scams = getScamRecords();
+  const index = scams.findIndex((s) => s.id === id);
+  if (index === -1) return { likes: 0, isLiked: false };
+
+  const likedData = getLikedIds();
+  const isCurrentlyLiked = likedData.scams.includes(id);
+
+  let currentLikes = scams[index].likes ?? 25;
+  if (isCurrentlyLiked) {
+    currentLikes = Math.max(0, currentLikes - 1);
+    likedData.scams = likedData.scams.filter((sId) => sId !== id);
+  } else {
+    currentLikes += 1;
+    likedData.scams.push(id);
+  }
+
+  scams[index].likes = currentLikes;
+  saveScamRecords(scams);
+  saveLikedIds(likedData);
+
+  return { likes: currentLikes, isLiked: !isCurrentlyLiked };
+}
+
+export function updateTrustedSellerLikes(id: string, likes: number): boolean {
+  const sellers = getTrustedSellers();
+  const index = sellers.findIndex((s) => s.id === id);
+  if (index === -1) return false;
+  sellers[index].likes = Math.max(0, likes);
+  saveTrustedSellers(sellers);
+  return true;
+}
+
+export function updateScamRecordLikes(id: string, likes: number): boolean {
+  const scams = getScamRecords();
+  const index = scams.findIndex((s) => s.id === id);
+  if (index === -1) return false;
+  scams[index].likes = Math.max(0, likes);
+  saveScamRecords(scams);
+  return true;
+}
+

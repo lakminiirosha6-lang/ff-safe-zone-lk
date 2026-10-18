@@ -14,6 +14,9 @@ export interface TrustedSeller {
   badgeLevel: 'Diamond' | 'Gold' | 'Master';
   notes?: string;
   isOfficialMiddleman: boolean;
+  logoUrl?: string;
+  photos?: string[];
+  likes?: number;
 }
 
 export type ScamType = 
@@ -41,6 +44,7 @@ export interface ScamRecord {
   dateReported: string;
   status: 'Confirmed Scammer' | 'Banned Criminal' | 'Under Police Complaint';
   reporterInfo?: string;
+  likes?: number;
 }
 
 export interface PendingReport {

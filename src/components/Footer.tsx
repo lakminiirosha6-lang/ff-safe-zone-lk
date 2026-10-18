@@ -1,22 +1,19 @@
 import React from 'react';
-import { ShieldCheck, Download, Lock } from 'lucide-react';
-import { downloadStandaloneHtmlFile } from '../utils/exportHtml';
+import { ShieldCheck } from 'lucide-react';
 
 interface FooterProps {
   onOpenReportModal: () => void;
-  onOpenAdminModal: () => void;
   onNavigate: (section: string) => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
   onOpenReportModal,
-  onOpenAdminModal,
   onNavigate,
 }) => {
   return (
     <footer className="bg-zinc-950 border-t border-zinc-800 text-zinc-400 text-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
           {/* Col 1: Brand Info */}
           <div className="md:col-span-2 space-y-3">
             <div className="flex items-center gap-2">
@@ -30,6 +27,18 @@ export const Footer: React.FC<FooterProps> = ({
             <p className="text-zinc-400 text-xs leading-relaxed max-w-sm">
               Sri Lanka Free Fire community verification initiative. Created to protect players, students, and competitive gamers from scam artists, fake middlemen, and fraudulent bank slips.
             </p>
+            <div className="pt-1">
+              <a
+                href="https://wa.me/94768303937"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-950/60 border border-green-500/50 hover:bg-green-900/50 text-green-300 rounded font-semibold text-xs transition-colors"
+                title="Direct WhatsApp with Founder / Admin"
+              >
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                <span>Contact Admin WhatsApp: +94 76 830 3937</span>
+              </a>
+            </div>
             <div className="text-[11px] text-zinc-500">
               Disclaimer: Community-driven safety database. Free Fire and Garena are trademarks of their respective owners.
             </div>
@@ -67,32 +76,6 @@ export const Footer: React.FC<FooterProps> = ({
                 </button>
               </li>
             </ul>
-          </div>
-
-          {/* Col 3: Deployment & Utilities */}
-          <div className="space-y-2">
-            <h4 className="text-xs font-gaming font-bold uppercase text-white tracking-wider">
-              Deployment & Tools
-            </h4>
-            <div className="space-y-2">
-              <button
-                onClick={downloadStandaloneHtmlFile}
-                className="w-full text-left py-1.5 px-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded border border-zinc-800 transition-colors flex items-center gap-1.5"
-                title="Download single index.html file for GitHub Pages"
-              >
-                <Download className="w-3.5 h-3.5 text-yellow-400" />
-                <span>Export Single HTML</span>
-              </button>
-
-              <button
-                onClick={onOpenAdminModal}
-                className="w-full text-left py-1.5 px-2 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-400 hover:text-yellow-400 rounded transition-colors flex items-center gap-1.5"
-                title="Access admin login (accessible via ?id=admin)"
-              >
-                <Lock className="w-3.5 h-3.5 text-zinc-500" />
-                <span>Admin Login (?id=admin)</span>
-              </button>
-            </div>
           </div>
         </div>
 

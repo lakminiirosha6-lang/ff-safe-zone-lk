@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { ScamRecord } from '../types';
-import { ShieldAlert, ExternalLink, Copy, Check, Search, ShieldX, ZoomIn, Image as ImageIcon } from 'lucide-react';
+import { ShieldAlert, ExternalLink, Copy, Check, Search, ShieldX, Images, Heart, Share2 } from 'lucide-react';
 import { ImageLightbox } from './ImageLightbox';
+import { getLikedIds, toggleScamLike } from '../utils/storage';
 
 interface ScamBlacklistGridProps {
   scams: ScamRecord[];
@@ -12,7 +13,27 @@ export const ScamBlacklistGrid: React.FC<ScamBlacklistGridProps> = ({ scams, onO
   const [selectedType, setSelectedType] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+
+  // Likes & Liked state
+  const [likedMap, setLikedMap] = useState<Record<string, boolean>>(() => {
+    const liked = getLikedIds();
+    const map: Record<string, boolean> = {};
+    liked.scams.forEach((id) => (map[id] = true));
+    return map;
+  });
+
+  const [likesCountMap, setLikesCountMap] = useState<Record<string, number>>(() => {
+    const map: Record<string, number> = {};
+    scams.forEach((s) => {
+      map[s.id] = s.likes ?? 25;
+    });
+    return map;
+  });
+
+  // Gallery slider state
+  const [galleryImages, setGalleryImages] = useState<string[]>([]);
+  const [galleryIndex, setGalleryIndex] = useState<number>(0);
+  const [galleryTitle, setGalleryTitle] = useState<string>('');
 
   const scamTypes = [
     'All',
@@ -27,6 +48,39 @@ export const ScamBlacklistGrid: React.FC<ScamBlacklistGridProps> = ({ scams, onO
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleLikeToggle = (id: string) => {
+    const res = toggleScamLike(id);
+    setLikedMap((prev) => ({ ...prev, [id]: res.isLiked }));
+    setLikesCountMap((prev) => ({ ...prev, [id]: res.likes }));
+  };
+
+  const handleShare = (scam: ScamRecord) => {
+    const text = `SCAMMER ALERT: ${scam.name} (${scam.scamType})\nWhatsApp: ${scam.whatsapp}\nReported on Free Fire Safe Zone LK`;
+    if (navigator.share) {
+      navigator.share({ title: scam.name, text, url: window.location.href }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(`${text}\n${window.location.href}`);
+      setCopiedId(`share-scam-${scam.id}`);
+      setTimeout(() => setCopiedId(null), 2000);
+    }
+  };
+
+  const openScamGallery = (scam: ScamRecord, startIndex = 0) => {
+    const list: string[] = [];
+    if (scam.avatarUrl) list.push(scam.avatarUrl);
+    if (scam.proofUrls && scam.proofUrls.length > 0) {
+      scam.proofUrls.forEach((p) => {
+        if (!list.includes(p)) list.push(p);
+      });
+    }
+
+    if (list.length > 0) {
+      setGalleryImages(list);
+      setGalleryIndex(startIndex);
+      setGalleryTitle(`${scam.name} - Evidence Proof Gallery`);
+    }
   };
 
   const filteredScams = useMemo(() => {
@@ -58,7 +112,7 @@ export const ScamBlacklistGrid: React.FC<ScamBlacklistGridProps> = ({ scams, onO
               Scam Blacklist <span className="text-red-500">Alert Registry</span>
             </h2>
             <p className="text-xs sm:text-sm text-zinc-400 mt-1 max-w-xl">
-              Confirmed scammers in the Sri Lanka Free Fire community with chat screenshots, channel photos, and bank slips.
+              Confirmed scammers with 1:1 evidence proof photos, chat screenshots, fake profiles, and flagged bank slips. Like, share, or submit new evidence.
             </p>
           </div>
 
@@ -92,79 +146,114 @@ export const ScamBlacklistGrid: React.FC<ScamBlacklistGridProps> = ({ scams, onO
           ))}
         </div>
 
-        {/* Red Grid */}
+        {/* Red Grid with Prominent 1:1 Image Presentation */}
         {filteredScams.length === 0 ? (
           <div className="p-12 text-center bg-zinc-900/30 rounded border border-zinc-800">
             <p className="text-zinc-400 text-sm">No scam records found matching your query.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredScams.map((scam) => {
-              const avatar = scam.avatarUrl || (scam.proofUrls && scam.proofUrls[0]);
+              const allImages = [
+                ...(scam.avatarUrl ? [scam.avatarUrl] : []),
+                ...(scam.proofUrls || []),
+              ];
+              const featuredImage = allImages[0];
+              const isLiked = likedMap[scam.id] || false;
+              const likesCount = likesCountMap[scam.id] ?? (scam.likes ?? 25);
+
               return (
                 <div
                   key={scam.id}
-                  className="bg-zinc-950/80 border border-red-900/50 rounded-lg p-5 flex flex-col justify-between hover:border-red-500 transition-all hover:shadow-[0_0_20px_rgba(239,68,68,0.12)] relative"
+                  className="bg-zinc-950/90 border border-red-900/50 rounded-xl overflow-hidden flex flex-col justify-between hover:border-red-500 transition-all hover:shadow-[0_0_25px_rgba(239,68,68,0.15)] relative"
                 >
-                  <div>
-                    {/* Header: Avatar, Name & Status */}
-                    <div className="flex items-start justify-between gap-2 border-b border-red-950/80 pb-3">
-                      <div className="flex items-center gap-2.5">
-                        {avatar ? (
-                          <img
-                            src={avatar}
-                            alt={scam.name}
-                            className="w-11 h-11 rounded object-cover border border-red-500/50 cursor-pointer shrink-0"
-                            onClick={() => setLightboxImage(avatar)}
-                            title="Click to zoom profile photo"
-                          />
-                        ) : (
-                          <div className="w-11 h-11 rounded bg-zinc-900 border border-red-900/60 flex items-center justify-center text-red-500 shrink-0">
-                            <ShieldAlert className="w-6 h-6" />
-                          </div>
-                        )}
-                        <div>
-                          <h3 className="font-bold text-red-200 text-sm sm:text-base leading-snug">
-                            {scam.name}
-                          </h3>
-                          {scam.aliases && scam.aliases.length > 0 && (
-                            <div className="text-[10px] text-zinc-400 truncate max-w-[180px]">
-                              {scam.aliases.join(', ')}
-                            </div>
-                          )}
+                  {/* PROMINENT 1:1 SQUARE PROOF / SCAMMER LOGO ON CARD FRONT */}
+                  <div className="relative aspect-square w-full bg-zinc-950 overflow-hidden border-b border-red-950/80 group">
+                    {featuredImage ? (
+                      <img
+                        src={featuredImage}
+                        alt={`${scam.name} Evidence Proof`}
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-gradient-to-b from-zinc-900 to-zinc-950">
+                        <div className="w-24 h-24 rounded-2xl bg-red-950/50 border-2 border-red-800/40 flex items-center justify-center text-red-500 mb-3 shadow-inner">
+                          <ShieldAlert className="w-12 h-12 stroke-[2.5]" />
                         </div>
+                        <span className="font-gaming font-bold text-lg text-red-200 uppercase tracking-wider">
+                          {scam.name}
+                        </span>
+                        <span className="text-xs text-red-400/90 mt-1 font-semibold">
+                          {scam.scamType}
+                        </span>
                       </div>
+                    )}
 
-                      <span className="text-[10px] font-bold font-mono uppercase tracking-wider px-2 py-0.5 bg-red-950 text-red-400 border border-red-800/80 rounded whitespace-nowrap shrink-0">
+                    {/* Status Badge */}
+                    <div className="absolute top-3 left-3 bg-red-950/90 backdrop-blur-md px-2.5 py-1 rounded-md border border-red-500/60 flex items-center gap-1.5 shadow-md">
+                      <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
+                      <span className="text-[11px] font-bold text-red-300 uppercase font-gaming tracking-wide">
                         {scam.status}
                       </span>
                     </div>
 
-                    {/* Metadata Row */}
-                    <div className="flex items-center gap-2 text-xs text-zinc-400 py-2.5 border-b border-zinc-900">
-                      <span className="text-red-400 font-semibold font-mono tabular-nums">
-                        {scam.scamAmountLkr > 0 ? `Scammed: Rs. ${scam.scamAmountLkr.toLocaleString()} LKR` : 'Amount: Unspecified'}
-                      </span>
-                      <span aria-hidden="true" className="text-zinc-700">·</span>
-                      <span className="text-zinc-500 text-[11px]">{scam.dateReported}</span>
+                    {/* Like & Share Quick Buttons on Image */}
+                    <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleLikeToggle(scam.id)}
+                        className={`px-2.5 py-1 rounded-full backdrop-blur-md border flex items-center gap-1 transition-all ${
+                          isLiked
+                            ? 'bg-red-600/90 text-white border-red-500 shadow-[0_0_12px_rgba(239,68,68,0.5)]'
+                            : 'bg-black/70 text-zinc-300 border-zinc-700 hover:text-white'
+                        }`}
+                        title={isLiked ? 'Unlike this record' : 'Like this record'}
+                      >
+                        <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-current text-white' : 'text-red-400'}`} />
+                        <span className="text-[11px] font-mono font-bold">{likesCount}</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleShare(scam)}
+                        className="p-1.5 bg-black/70 hover:bg-zinc-900 text-zinc-300 hover:text-white rounded-full backdrop-blur-md border border-zinc-700 transition-colors"
+                        title="Share warning link"
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
 
-                    {/* Fields */}
-                    <div className="space-y-2.5 my-3 text-xs">
-                      <div className="bg-red-950/20 p-2.5 rounded border border-red-900/30">
-                        <span className="text-[10px] text-red-400 uppercase tracking-wider block font-medium">
-                          Flagged Bank / Payment Channels
-                        </span>
-                        <span className="font-mono text-zinc-200 block mt-1 break-all">
-                          {scam.bankDetails || 'No bank info registered'}
-                        </span>
+                    {/* Lightbox / Slider Trigger for all images */}
+                    {allImages.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => openScamGallery(scam, 0)}
+                        className="absolute bottom-3 right-3 px-3 py-1.5 bg-black/80 hover:bg-black text-white text-xs rounded-lg border border-red-500/50 backdrop-blur-md flex items-center gap-1.5 shadow-lg transition-transform active:scale-95"
+                      >
+                        <Images className="w-3.5 h-3.5 text-red-400" />
+                        <span>Photos ({allImages.length})</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Card Body */}
+                  <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                    <div>
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div>
+                          <h3 className="font-gaming font-bold text-white text-sm uppercase tracking-wide">
+                            {scam.name}
+                          </h3>
+                          <span className="inline-block mt-0.5 text-xs text-red-400 font-semibold">
+                            Loss: Rs. {scam.scamAmountLkr.toLocaleString()}
+                          </span>
+                        </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2">
+                      {/* Scammer Details */}
+                      <div className="space-y-2.5 text-xs mt-3">
                         <div className="bg-zinc-900/90 p-2.5 rounded border border-zinc-800">
-                          <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">WhatsApp</span>
+                          <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">WhatsApp Number</span>
                           <div className="flex items-center justify-between mt-1">
-                            <span className="font-mono text-red-400 font-semibold truncate">{scam.whatsapp || 'N/A'}</span>
+                            <span className="font-mono text-red-400 font-semibold">{scam.whatsapp}</span>
                             {scam.whatsapp && (
                               <button
                                 onClick={() => handleCopy(scam.whatsapp, `wa-scam-${scam.id}`)}
@@ -200,75 +289,46 @@ export const ScamBlacklistGrid: React.FC<ScamBlacklistGridProps> = ({ scams, onO
                             )}
                           </div>
                         </div>
-                      </div>
 
-                      <div className="bg-zinc-900/60 p-2.5 rounded border border-zinc-800/80">
-                        <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">Modus Operandi</span>
-                        <span className="text-zinc-300 text-xs mt-0.5 block font-medium">{scam.scamType}</span>
-                      </div>
-
-                      <div className="bg-zinc-900/40 p-2.5 rounded border border-zinc-800/60">
-                        <span className="text-[10px] text-zinc-500 uppercase tracking-wider block mb-1">
-                          Incident Summary
-                        </span>
-                        <p className="text-[11px] text-zinc-300 leading-relaxed">
-                          {scam.incidentDetails}
-                        </p>
-                      </div>
-
-                      {/* Evidence / Screenshots Gallery */}
-                      {scam.proofUrls && scam.proofUrls.length > 0 && (
-                        <div className="space-y-1.5 pt-1">
-                          <span className="text-[10px] text-zinc-400 uppercase tracking-wider block font-semibold flex items-center gap-1">
-                            <ImageIcon className="w-3 h-3 text-yellow-400" />
-                            <span>Proof Photos & Screenshots ({scam.proofUrls.length})</span>
-                          </span>
-                          <div className="flex flex-wrap gap-1.5">
-                            {scam.proofUrls.map((url, idx) => (
-                              <div
-                                key={idx}
-                                className="relative group rounded border border-zinc-700 overflow-hidden w-14 h-14 bg-zinc-900 cursor-pointer"
-                                onClick={() => setLightboxImage(url)}
-                                title={`View Evidence #${idx + 1}`}
-                              >
-                                <img
-                                  src={url}
-                                  alt={`Evidence ${idx + 1}`}
-                                  className="w-full h-full object-cover"
-                                />
-                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                  <ZoomIn className="w-4 h-4 text-white" />
-                                </div>
-                              </div>
-                            ))}
-                          </div>
+                        <div className="bg-zinc-900/60 p-2.5 rounded border border-zinc-800/80">
+                          <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">Modus Operandi</span>
+                          <span className="text-zinc-300 text-xs mt-0.5 block font-medium">{scam.scamType}</span>
                         </div>
-                      )}
+
+                        <div className="bg-zinc-900/40 p-2.5 rounded border border-zinc-800/60">
+                          <span className="text-[10px] text-zinc-500 uppercase tracking-wider block mb-1">
+                            Incident Summary
+                          </span>
+                          <p className="text-[11px] text-zinc-300 leading-relaxed">
+                            {scam.incidentDetails}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Bottom links */}
-                  <div className="pt-3 border-t border-zinc-900 flex items-center justify-between text-xs">
-                    {scam.facebookUrl ? (
-                      <a
-                        href={scam.facebookUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-zinc-400 hover:text-red-400 flex items-center gap-1 text-[11px] transition-colors"
+                    {/* Bottom links */}
+                    <div className="pt-3 border-t border-zinc-900 flex items-center justify-between text-xs">
+                      {scam.facebookUrl ? (
+                        <a
+                          href={scam.facebookUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-zinc-400 hover:text-red-400 flex items-center gap-1 text-[11px] transition-colors"
+                        >
+                          <span>View Fake FB Profile</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      ) : (
+                        <span className="text-zinc-600 text-[11px]">No FB profile recorded</span>
+                      )}
+
+                      <button
+                        onClick={onOpenReportModal}
+                        className="text-red-400 hover:text-red-300 text-[11px] font-medium"
                       >
-                        <span>View Fake FB Profile</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    ) : (
-                      <span className="text-zinc-600 text-[11px]">No FB profile recorded</span>
-                    )}
-
-                    <button
-                      onClick={onOpenReportModal}
-                      className="text-red-400 hover:text-red-300 text-[11px] font-medium"
-                    >
-                      Add Evidence +
-                    </button>
+                        Add Evidence +
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -277,10 +337,12 @@ export const ScamBlacklistGrid: React.FC<ScamBlacklistGridProps> = ({ scams, onO
         )}
       </section>
 
-      {/* Lightbox for zooming photos */}
+      {/* Lightbox / Slider for viewing scam evidence photos */}
       <ImageLightbox
-        imageUrl={lightboxImage}
-        onClose={() => setLightboxImage(null)}
+        images={galleryImages}
+        initialIndex={galleryIndex}
+        title={galleryTitle}
+        onClose={() => setGalleryImages([])}
       />
     </>
   );

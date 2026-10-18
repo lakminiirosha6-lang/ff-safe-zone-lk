@@ -16,6 +16,9 @@ import {
   Code,
   Image as ImageIcon,
   ZoomIn,
+  Lock,
+  UserMinus,
+  Images,
 } from 'lucide-react';
 import { TrustedSeller, ScamRecord, PendingReport, SellerRole, ScamType } from '../types';
 import {
@@ -24,6 +27,7 @@ import {
   deleteAdminPassword,
   addTrustedSeller,
   deleteTrustedSeller,
+  convertSellerToScammer,
   addScamRecord,
   deleteScamRecord,
   approvePendingReport,
@@ -45,6 +49,7 @@ interface AdminDashboardProps {
   scamRecords: ScamRecord[];
   pendingReports: PendingReport[];
   onDataChanged: () => void;
+  isMasterAdmin: boolean;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -54,6 +59,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   scamRecords,
   pendingReports,
   onDataChanged,
+  isMasterAdmin,
 }) => {
   const [activeTab, setActiveTab] = useState<'pending' | 'scams' | 'sellers' | 'passwords' | 'system'>('pending');
   const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -76,6 +82,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     badgeLevel: 'Diamond' as 'Diamond' | 'Gold' | 'Master',
     isOfficialMiddleman: true,
     notes: '',
+    logoUrl: '',
+  });
+
+  // State for Demoting / Converting a Trusted Seller to Scammer
+  const [sellerToDemote, setSellerToDemote] = useState<TrustedSeller | null>(null);
+  const [demoteForm, setDemoteForm] = useState({
+    scamAmountLkr: '',
+    scamType: 'Account Recovery Fraud (Retrieved after sale)' as ScamType,
+    incidentDetails: '',
   });
 
   // New Scam Record state with photo support
@@ -94,12 +109,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   });
   const [newScamImages, setNewScamImages] = useState<string[]>([]);
   const [newScamAvatarIdx, setNewScamAvatarIdx] = useState<number>(0);
-  const [newScamUrlInput, setNewScamUrlInput] = useState('');
 
   // Target item for adding additional screenshots
   const [appendTarget, setAppendTarget] = useState<{ type: 'scam' | 'pending'; id: string; name: string } | null>(null);
   const appendFileInputRef = useRef<HTMLInputElement | null>(null);
   const directScamFileInputRef = useRef<HTMLInputElement | null>(null);
+  const sellerLogoInputRef = useRef<HTMLInputElement | null>(null);
 
   // JSON Import state
   const [jsonInput, setJsonInput] = useState('');
@@ -111,9 +126,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setTimeout(() => setFeedback(null), 3500);
   };
 
-  // PASSWORD MANAGEMENT
+  // PASSWORD MANAGEMENT (STRICT: ONLY MASTER ADMIN "yominsha")
   const handleAddPassword = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isMasterAdmin) {
+      showNotice('Permission Denied: Only Master Admin (yominsha) can add passwords.', 'error');
+      return;
+    }
     const res = addAdminPassword(newPassword);
     if (res.success) {
       setPasswords(getAdminPasswords());
@@ -126,6 +145,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleDeletePassword = (pwd: string) => {
+    if (!isMasterAdmin) {
+      showNotice('Permission Denied: Only Master Admin (yominsha) can delete passwords.', 'error');
+      return;
+    }
     if (passwords.length <= 1) {
       showNotice('Security Guard: You must keep at least 1 admin password in the system!', 'error');
       return;
@@ -165,10 +188,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       badgeLevel: newSeller.badgeLevel,
       isOfficialMiddleman: newSeller.isOfficialMiddleman,
       notes: newSeller.notes.trim(),
+      logoUrl: newSeller.logoUrl || undefined,
     });
 
     onDataChanged();
-    showNotice(`Trusted seller "${newSeller.name}" registered.`, 'success');
+    showNotice(`Trusted seller "${newSeller.name}" registered with 1:1 Logo.`, 'success');
     setNewSeller({
       name: '',
       role: 'Official Middleman',
@@ -181,6 +205,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       badgeLevel: 'Diamond',
       isOfficialMiddleman: true,
       notes: '',
+      logoUrl: '',
     });
   };
 
@@ -189,6 +214,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       deleteTrustedSeller(id);
       onDataChanged();
       showNotice(`Removed seller "${name}".`, 'success');
+    }
+  };
+
+  // CONVERT / DEMOTE TRUSTED SELLER TO SCAMMER
+  const handleConfirmDemoteSeller = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sellerToDemote) return;
+
+    const res = convertSellerToScammer(sellerToDemote.id, {
+      scamAmountLkr: Number(demoteForm.scamAmountLkr) || 0,
+      scamType: demoteForm.scamType,
+      incidentDetails:
+        demoteForm.incidentDetails.trim() ||
+        `Previously verified seller (${sellerToDemote.name}) demoted to scammer by admin due to fraudulent activity.`,
+    });
+
+    if (res.success) {
+      onDataChanged();
+      showNotice(`"${sellerToDemote.name}" has been removed from Trusted and added to the Scam Blacklist!`, 'success');
+      setSellerToDemote(null);
+      setDemoteForm({
+        scamAmountLkr: '',
+        scamType: 'Account Recovery Fraud (Retrieved after sale)',
+        incidentDetails: '',
+      });
+    } else {
+      showNotice('Failed to demote seller.', 'error');
     }
   };
 
@@ -381,8 +433,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <h2 className="text-base font-bold font-gaming uppercase tracking-wide text-white">
                   FF Safe Zone LK Admin Control Panel
                 </h2>
-                <div className="text-[11px] text-zinc-400">
-                  Master Security & Multi-Photo Verification Console
+                <div className="text-[11px] text-zinc-400 flex items-center gap-2">
+                  <span>Master Security Console</span>
+                  <span>·</span>
+                  <span className={isMasterAdmin ? 'text-yellow-400 font-semibold' : 'text-zinc-500'}>
+                    {isMasterAdmin ? 'Master Super Admin (yominsha)' : 'Secondary Admin Access'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -463,7 +519,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               }`}
             >
               <KeyRound className="w-3.5 h-3.5" />
-              <span>Admin Passwords ({passwords.length})</span>
+              <span>Admin Passwords {isMasterAdmin ? `(${passwords.length})` : '(Locked)'}</span>
             </button>
 
             <button
@@ -803,7 +859,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </form>
                 </div>
 
-                {/* Existing Blacklist Table with Add Screenshot and Lightbox */}
+                {/* Existing Blacklist Table */}
                 <div className="bg-zinc-900/60 border border-zinc-800 rounded-lg overflow-hidden">
                   <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
                     <h4 className="text-xs font-bold uppercase text-zinc-300 font-gaming">
@@ -900,11 +956,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             {/* TAB 3: MANAGE TRUSTED SELLERS */}
             {activeTab === 'sellers' && (
               <div className="space-y-6">
-                {/* Form to add trusted seller */}
+                {/* Form to add trusted seller with 1:1 Logo upload */}
                 <div className="bg-zinc-900 border border-yellow-500/30 rounded-lg p-5">
                   <h3 className="text-sm font-bold uppercase text-yellow-400 font-gaming mb-3 flex items-center gap-2">
                     <Plus className="w-4 h-4" />
-                    Register New Verified Trusted Seller / Middleman
+                    Register New Verified Trusted Seller with 1:1 Store Logo
                   </h3>
                   <form onSubmit={handleAddSeller} className="space-y-3">
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -977,11 +1033,69 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       />
                       <input
                         type="text"
-                        placeholder="Notes / Credentials / Experience description"
+                        placeholder="Notes / Credentials description"
                         value={newSeller.notes}
                         onChange={(e) => setNewSeller({ ...newSeller, notes: e.target.value })}
                         className="px-3 py-2 bg-zinc-950 border border-zinc-700 rounded text-xs text-zinc-200 outline-none focus:border-yellow-400"
                       />
+                    </div>
+
+                    {/* 1:1 Store Logo / Avatar Upload */}
+                    <div className="p-3 bg-zinc-950/70 border border-zinc-800 rounded flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        {newSeller.logoUrl ? (
+                          <img
+                            src={newSeller.logoUrl}
+                            alt="Logo preview"
+                            className="w-14 h-14 rounded object-cover border border-yellow-400"
+                          />
+                        ) : (
+                          <div className="w-14 h-14 rounded bg-zinc-900 border border-zinc-700 flex items-center justify-center text-zinc-500">
+                            <ImageIcon className="w-6 h-6" />
+                          </div>
+                        )}
+                        <div>
+                          <span className="text-xs font-semibold text-white block">
+                            1:1 Square Store Logo / Avatar
+                          </span>
+                          <span className="text-[11px] text-zinc-400">
+                            Upload square logo image to display on front of seller card
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="file"
+                          ref={sellerLogoInputRef}
+                          accept="image/*"
+                          className="hidden"
+                          id="seller-logo-file"
+                          onChange={async (e) => {
+                            const f = e.target.files?.[0];
+                            if (f) {
+                              const compressed = await compressImageFile(f);
+                              setNewSeller((prev) => ({ ...prev, logoUrl: compressed }));
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor="seller-logo-file"
+                          className="px-3 py-1.5 bg-yellow-400 hover:bg-yellow-300 text-zinc-950 font-bold text-xs uppercase rounded cursor-pointer transition-colors flex items-center gap-1"
+                        >
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>Choose Logo</span>
+                        </label>
+                        {newSeller.logoUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setNewSeller((prev) => ({ ...prev, logoUrl: '' }))}
+                            className="text-xs text-red-400 hover:text-red-300 p-1"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex justify-end pt-1">
@@ -995,48 +1109,80 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </form>
                 </div>
 
-                {/* Trusted Sellers Table */}
+                {/* Trusted Sellers Table with Convert to Scammer feature */}
                 <div className="bg-zinc-900/60 border border-zinc-800 rounded-lg overflow-hidden">
-                  <div className="p-4 border-b border-zinc-800">
+                  <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
                     <h4 className="text-xs font-bold uppercase text-zinc-300 font-gaming">
                       Currently Registered Trusted Sellers ({trustedSellers.length})
                     </h4>
+                    <span className="text-[11px] text-zinc-500">
+                      You can demote any seller who cheated to the public Scam Blacklist
+                    </span>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs">
                       <thead className="bg-zinc-950/80 text-zinc-400 border-b border-zinc-800 uppercase font-mono text-[10px]">
                         <tr>
-                          <th className="p-3">Seller Name</th>
+                          <th className="p-3">Logo / Seller Name</th>
                           <th className="p-3">Role</th>
                           <th className="p-3">WhatsApp</th>
                           <th className="p-3">UID</th>
                           <th className="p-3">Vouches</th>
-                          <th className="p-3 text-right">Action</th>
+                          <th className="p-3 text-right">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-zinc-800/60 text-zinc-300">
                         {trustedSellers.map((seller) => (
                           <tr key={seller.id} className="hover:bg-zinc-900/40">
-                            <td className="p-3 font-semibold text-white flex items-center gap-1.5">
-                              {seller.name}
-                              {seller.isOfficialMiddleman && (
-                                <span className="text-[9px] bg-yellow-400/20 text-yellow-300 px-1.5 py-0.2 rounded">
-                                  MM
-                                </span>
-                              )}
+                            <td className="p-3 font-semibold text-white">
+                              <div className="flex items-center gap-2">
+                                {seller.logoUrl ? (
+                                  <img
+                                    src={seller.logoUrl}
+                                    alt=""
+                                    className="w-9 h-9 rounded object-cover border border-yellow-400/50 cursor-pointer shrink-0"
+                                    onClick={() => setLightboxImage(seller.logoUrl || null)}
+                                  />
+                                ) : (
+                                  <div className="w-9 h-9 rounded bg-zinc-950 border border-zinc-800 flex items-center justify-center text-yellow-400 shrink-0">
+                                    <ShieldCheck className="w-4 h-4" />
+                                  </div>
+                                )}
+                                <div>
+                                  <div className="flex items-center gap-1.5">
+                                    <span>{seller.name}</span>
+                                    {seller.isOfficialMiddleman && (
+                                      <span className="text-[9px] bg-yellow-400/20 text-yellow-300 px-1 py-0.2 rounded font-mono">
+                                        MM
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
                             </td>
                             <td className="p-3 text-yellow-400/90">{seller.role}</td>
                             <td className="p-3 font-mono text-zinc-200">{seller.whatsapp}</td>
-                            <td className="p-3 font-mono">{seller.freefireUid}</td>
+                            <td className="p-3 font-mono">{seller.freefireUid || '-'}</td>
                             <td className="p-3 font-mono font-semibold text-yellow-400">{seller.vouchesCount}+</td>
                             <td className="p-3 text-right">
-                              <button
-                                onClick={() => handleDeleteSeller(seller.id, seller.name)}
-                                className="text-zinc-500 hover:text-red-400 p-1 transition-colors"
-                                title="Delete trusted seller"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              <div className="flex items-center justify-end gap-2">
+                                {/* Demote / Convert to Scammer Button */}
+                                <button
+                                  onClick={() => setSellerToDemote(seller)}
+                                  className="px-2 py-1 bg-red-950 hover:bg-red-900 text-red-300 border border-red-800/80 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 transition-colors"
+                                  title="Convert this seller into a blacklisted scammer"
+                                >
+                                  <UserMinus className="w-3 h-3 text-red-400" />
+                                  <span>Scammer කරන්න</span>
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteSeller(seller.id, seller.name)}
+                                  className="text-zinc-500 hover:text-red-400 p-1 transition-colors"
+                                  title="Delete trusted seller"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -1047,90 +1193,109 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             )}
 
-            {/* TAB 4: ADMIN PASSWORDS */}
+            {/* TAB 4: ADMIN PASSWORDS (STRICT SECURITY: YOMINSHA ONLY) */}
             {activeTab === 'passwords' && (
               <div className="space-y-6 max-w-2xl">
-                <div>
-                  <h3 className="text-sm font-bold uppercase text-white font-gaming">
-                    Manage Administrator Passwords
-                  </h3>
-                  <p className="text-xs text-zinc-400 mt-1">
-                    Stored securely in browser localStorage (<code className="text-yellow-400">ff_admin_passwords</code>). You can add new passwords and delete existing ones, but the system guarantees at least 1 password always remains.
-                  </p>
-                </div>
-
-                {/* Add Password Form */}
-                <form onSubmit={handleAddPassword} className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Enter new admin password..."
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="flex-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded text-xs text-zinc-200 outline-none focus:border-yellow-400"
-                  />
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-yellow-400 hover:bg-yellow-300 text-zinc-950 font-bold text-xs uppercase tracking-wider rounded transition-colors whitespace-nowrap"
-                  >
-                    Add Password
-                  </button>
-                </form>
-
-                {/* Passwords List */}
-                <div className="bg-zinc-900/60 border border-zinc-800 rounded-lg overflow-hidden">
-                  <div className="p-3.5 border-b border-zinc-800 bg-zinc-950/40 text-xs font-semibold text-zinc-300 flex justify-between items-center">
-                    <span>Active Passwords</span>
-                    <span className="text-[11px] text-zinc-500">
-                      {passwords.length} key{passwords.length > 1 ? 's' : ''} registered (min 1 required)
-                    </span>
+                {!isMasterAdmin ? (
+                  /* Blocked for non-master admins */
+                  <div className="p-8 text-center bg-zinc-900/40 border border-red-900/50 rounded-xl space-y-3">
+                    <div className="w-16 h-16 mx-auto rounded-full bg-red-950/60 border border-red-500/40 flex items-center justify-center text-red-400">
+                      <Lock className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-base font-bold text-white uppercase font-gaming">
+                      Master Key Required / මුරපද කළමනාකරණය තහනම්ය
+                    </h3>
+                    <p className="text-xs text-zinc-300 max-w-md mx-auto leading-relaxed">
+                      ආරක්ෂක නීතිය: අලුතින් Admin Password එකතු කිරීමට, ඇති Passwords බැලීමට හෝ Delete කිරීමට හැක්කේ ප්‍රධාන Master Password එක වන <strong className="text-yellow-400 font-mono">yominsha</strong> මඟින් Login වූ විට පමණි. වෙනත් Admin credentials වලට මෙම අංශය විවෘත නොවේ.
+                    </p>
                   </div>
-                  <div className="divide-y divide-zinc-800">
-                    {passwords.map((pwd) => (
-                      <div
-                        key={pwd}
-                        className="px-4 py-3 flex items-center justify-between hover:bg-zinc-900/40"
+                ) : (
+                  /* Full management for master admin */
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-sm font-bold uppercase text-white font-gaming flex items-center gap-2">
+                        <KeyRound className="w-4 h-4 text-yellow-400" />
+                        <span>Master Password Management (Super Admin)</span>
+                      </h3>
+                      <p className="text-xs text-zinc-400 mt-1">
+                        You are logged in with the Master Key (<code className="text-yellow-400 font-mono">yominsha</code>). You can add new secondary admin keys or revoke them. Secondary admins will NOT be able to view or delete passwords.
+                      </p>
+                    </div>
+
+                    {/* Add Password Form */}
+                    <form onSubmit={handleAddPassword} className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Enter new admin password..."
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="flex-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded text-xs text-zinc-200 outline-none focus:border-yellow-400"
+                      />
+                      <button
+                        type="submit"
+                        className="px-4 py-2 bg-yellow-400 hover:bg-yellow-300 text-zinc-950 font-bold text-xs uppercase tracking-wider rounded transition-colors whitespace-nowrap"
                       >
-                        <div className="flex items-center gap-3">
-                          <KeyRound className="w-4 h-4 text-yellow-400" />
-                          <div>
-                            <span className="font-mono text-sm text-zinc-200 font-bold tracking-wider">
-                              {pwd}
-                            </span>
-                            {pwd === 'yominsha' && (
-                              <span className="ml-2 text-[10px] uppercase font-mono px-1.5 py-0.5 bg-yellow-400/20 text-yellow-300 rounded">
-                                Master Key
-                              </span>
-                            )}
-                          </div>
-                        </div>
+                        Add Password
+                      </button>
+                    </form>
 
-                        <button
-                          onClick={() => handleDeletePassword(pwd)}
-                          disabled={passwords.length <= 1}
-                          className={`p-1.5 rounded transition-colors ${
-                            passwords.length <= 1
-                              ? 'text-zinc-600 cursor-not-allowed'
-                              : 'text-zinc-400 hover:text-red-400 hover:bg-zinc-800'
-                          }`}
-                          title={
-                            passwords.length <= 1
-                              ? 'Cannot delete the last remaining password'
-                              : 'Delete this password'
-                          }
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                    {/* Passwords List */}
+                    <div className="bg-zinc-900/60 border border-zinc-800 rounded-lg overflow-hidden">
+                      <div className="p-3.5 border-b border-zinc-800 bg-zinc-950/40 text-xs font-semibold text-zinc-300 flex justify-between items-center">
+                        <span>Active Passwords</span>
+                        <span className="text-[11px] text-zinc-500">
+                          {passwords.length} key{passwords.length > 1 ? 's' : ''} registered (min 1 required)
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                      <div className="divide-y divide-zinc-800">
+                        {passwords.map((pwd) => (
+                          <div
+                            key={pwd}
+                            className="px-4 py-3 flex items-center justify-between hover:bg-zinc-900/40"
+                          >
+                            <div className="flex items-center gap-3">
+                              <KeyRound className="w-4 h-4 text-yellow-400" />
+                              <div>
+                                <span className="font-mono text-sm text-zinc-200 font-bold tracking-wider">
+                                  {pwd}
+                                </span>
+                                {pwd === 'yominsha' && (
+                                  <span className="ml-2 text-[10px] uppercase font-mono px-1.5 py-0.5 bg-yellow-400/20 text-yellow-300 rounded font-semibold">
+                                    Master Key (Full Control)
+                                  </span>
+                                )}
+                              </div>
+                            </div>
 
-                {passwords.length <= 1 && (
-                  <div className="p-3 bg-amber-950/30 border border-amber-500/40 rounded flex items-center gap-2 text-xs text-amber-300">
-                    <AlertTriangle className="w-4 h-4 shrink-0" />
-                    <span>
-                      Safe guard active: At least one password must remain to prevent lockout.
-                    </span>
+                            <button
+                              onClick={() => handleDeletePassword(pwd)}
+                              disabled={passwords.length <= 1}
+                              className={`p-1.5 rounded transition-colors ${
+                                passwords.length <= 1
+                                  ? 'text-zinc-600 cursor-not-allowed'
+                                  : 'text-zinc-400 hover:text-red-400 hover:bg-zinc-800'
+                              }`}
+                              title={
+                                passwords.length <= 1
+                                  ? 'Cannot delete the last remaining password'
+                                  : 'Delete this password'
+                              }
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {passwords.length <= 1 && (
+                      <div className="p-3 bg-amber-950/30 border border-amber-500/40 rounded flex items-center gap-2 text-xs text-amber-300">
+                        <AlertTriangle className="w-4 h-4 shrink-0" />
+                        <span>
+                          Safe guard active: At least one password must remain to prevent lockout.
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1231,7 +1396,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           {/* Modal Footer */}
           <div className="px-6 py-3 border-t border-zinc-800 bg-zinc-900/80 flex items-center justify-between text-xs text-zinc-500">
-            <span>Admin Console: Full Multi-Photo & Screenshot Verification Active</span>
+            <span>Admin Console: Full Multi-Photo & Role Security Active</span>
             <button
               onClick={onClose}
               className="px-4 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded text-xs font-semibold"
@@ -1241,6 +1406,94 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Modal to Demote / Convert Trusted Seller to Scammer */}
+      {sellerToDemote && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+          <div className="relative w-full max-w-lg bg-zinc-950 border border-red-600 rounded-xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div className="flex items-center gap-2 text-red-500 font-gaming font-bold text-base uppercase">
+                <UserMinus className="w-5 h-5" />
+                <span>Convert Seller to Scammer / Scammer කරන්න</span>
+              </div>
+              <button
+                onClick={() => setSellerToDemote(null)}
+                className="text-zinc-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3 bg-red-950/40 border border-red-800/40 rounded text-xs text-red-200">
+              <p>
+                ඔබ <strong className="text-white underline">{sellerToDemote.name}</strong> නමැති Trusted Seller ව Trusted ලැයිස්තුවෙන් ඉවත් කර <strong>Scam Blacklist</strong> එකට මාරු කිරීමට සූදානම් වේ.
+              </p>
+            </div>
+
+            <form onSubmit={handleConfirmDemoteSeller} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-zinc-300 font-medium mb-1">
+                  Scammed Amount (LKR) / වංචා කළ මුදල (ඇත්නම්)
+                </label>
+                <input
+                  type="number"
+                  placeholder="e.g. 25000"
+                  value={demoteForm.scamAmountLkr}
+                  onChange={(e) => setDemoteForm({ ...demoteForm, scamAmountLkr: e.target.value })}
+                  className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded text-zinc-200 outline-none focus:border-red-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-300 font-medium mb-1">
+                  Scam Classification / වංචා වර්ගය
+                </label>
+                <select
+                  value={demoteForm.scamType}
+                  onChange={(e) => setDemoteForm({ ...demoteForm, scamType: e.target.value as ScamType })}
+                  className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded text-zinc-200 outline-none focus:border-red-500"
+                >
+                  <option value="Account Recovery Fraud (Retrieved after sale)">Account Recovery Fraud (විකිණූ පසු Recover කරගැනීම)</option>
+                  <option value="Account Sale Scam (Took money, no login)">Account Sale Scam (සල්ලි අරන් Account නොදීම)</option>
+                  <option value="Fake Middleman Impersonation">Fake Middleman Fraud / MM වංචාව</option>
+                  <option value="Fake Payment Slip / FriMi Scam">Fake Payment Slip</option>
+                  <option value="Diamond Top-Up Scam">Diamond Top-Up Scam</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-zinc-300 font-medium mb-1">
+                  Incident Reason / සිද්ධිය විස්තර කරන්න <span className="text-red-400">*</span>
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  placeholder="මෙම Verified Seller විසින් සිදුකළ වංචාව පිළිබඳව සටහනක් ඇතුළත් කරන්න..."
+                  value={demoteForm.incidentDetails}
+                  onChange={(e) => setDemoteForm({ ...demoteForm, incidentDetails: e.target.value })}
+                  className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded text-zinc-200 outline-none focus:border-red-500"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSellerToDemote(null)}
+                  className="px-4 py-2 bg-zinc-900 text-zinc-300 rounded hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-red-600 hover:bg-red-500 text-white font-bold uppercase tracking-wider rounded"
+                >
+                  Confirm & Move to Blacklist
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Lightbox for full size photo viewing in Admin Panel */}
       <ImageLightbox

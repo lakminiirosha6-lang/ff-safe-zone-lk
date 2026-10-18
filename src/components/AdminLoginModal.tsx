@@ -5,7 +5,7 @@ import { verifyAdminPassword } from '../utils/storage';
 interface AdminLoginModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLoginSuccess: () => void;
+  onLoginSuccess: (enteredPassword: string) => void;
 }
 
 export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
@@ -20,16 +20,17 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!password.trim()) {
+    const trimmed = password.trim();
+    if (!trimmed) {
       setError('Please enter the admin password.');
       return;
     }
 
-    const isValid = verifyAdminPassword(password.trim());
+    const isValid = verifyAdminPassword(trimmed);
     if (isValid) {
       setError('');
       setPassword('');
-      onLoginSuccess();
+      onLoginSuccess(trimmed);
     } else {
       setError('Invalid admin credentials. Access denied.');
     }

@@ -106,6 +106,19 @@ export const HeroSearch: React.FC<HeroSearchProps> = ({
               Bank Slip Scammer
             </button>
           </div>
+
+          {/* Direct WhatsApp Contact Banner (+94768303937) */}
+          <div className="mt-4 flex items-center justify-center">
+            <a
+              href="https://wa.me/94768303937"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-green-950/50 border border-green-500/40 hover:bg-green-900/50 text-green-300 text-xs font-semibold transition-all shadow-[0_0_15px_rgba(34,197,94,0.15)]"
+            >
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+              <span>Direct Admin WhatsApp: +94 76 830 3937</span>
+            </a>
+          </div>
         </div>
 
         {/* Clean Metric Bar (Anti-Slop, No Cockpit Hallucinations) */}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
+import { MessageCircle } from 'lucide-react';
 import { Navbar } from './components/Navbar';
 import { HeroSearch } from './components/HeroSearch';
 import { SearchResultModal } from './components/SearchResultModal';
@@ -40,6 +41,7 @@ export default function App() {
   // Admin visibility & auth state
   const [isAdminVisible, setIsAdminVisible] = useState(false);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [activeAdminKey, setActiveAdminKey] = useState<string>(() => sessionStorage.getItem('ff_admin_key') || '');
 
   // Reload data from localStorage
   const refreshData = useCallback(() => {
@@ -61,11 +63,13 @@ export default function App() {
 
     // Check session storage for existing session
     const savedAdminSession = sessionStorage.getItem('ff_admin_logged_in') === 'true';
+    const savedKey = sessionStorage.getItem('ff_admin_key') || '';
 
     if (hasAdminParam || savedAdminSession) {
       setIsAdminVisible(true);
       if (savedAdminSession) {
         setIsAdminLoggedIn(true);
+        if (savedKey) setActiveAdminKey(savedKey);
       } else {
         // Automatically open the admin login modal if ?id=admin is in URL as requested
         setIsAdminLoginOpen(true);
@@ -80,10 +84,12 @@ export default function App() {
   };
 
   // Admin login successful
-  const handleAdminLoginSuccess = () => {
+  const handleAdminLoginSuccess = (enteredPassword: string) => {
     setIsAdminLoggedIn(true);
     setIsAdminVisible(true);
+    setActiveAdminKey(enteredPassword);
     sessionStorage.setItem('ff_admin_logged_in', 'true');
+    sessionStorage.setItem('ff_admin_key', enteredPassword);
     setIsAdminLoginOpen(false);
     setIsAdminDashboardOpen(true);
   };
@@ -91,7 +97,9 @@ export default function App() {
   // Admin logout
   const handleAdminLogout = () => {
     setIsAdminLoggedIn(false);
+    setActiveAdminKey('');
     sessionStorage.removeItem('ff_admin_logged_in');
+    sessionStorage.removeItem('ff_admin_key');
     setIsAdminDashboardOpen(false);
   };
 
@@ -150,7 +158,6 @@ export default function App() {
       {/* Footer */}
       <Footer
         onOpenReportModal={() => setIsReportModalOpen(true)}
-        onOpenAdminModal={() => setIsAdminLoginOpen(true)}
         onNavigate={handleNavigate}
       />
 
@@ -192,7 +199,24 @@ export default function App() {
         scamRecords={scamRecords}
         pendingReports={pendingReports}
         onDataChanged={refreshData}
+        isMasterAdmin={activeAdminKey === 'yominsha'}
       />
+
+      {/* Floating WhatsApp Quick Contact Button (+94768303937) */}
+      <a
+        href="https://wa.me/94768303937"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-5 right-5 z-40 flex items-center gap-2 px-3.5 py-2.5 bg-green-500 hover:bg-green-400 text-zinc-950 font-bold text-xs uppercase tracking-wider rounded-full shadow-[0_0_20px_rgba(34,197,94,0.4)] hover:scale-105 active:scale-95 transition-all group"
+        title="Chat with Admin / Founder on WhatsApp (+94 76 830 3937)"
+      >
+        <span className="relative flex h-3 w-3">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-zinc-950 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-3 w-3 bg-zinc-950"></span>
+        </span>
+        <MessageCircle className="w-4 h-4 fill-current stroke-[2]" />
+        <span className="hidden sm:inline font-mono">WhatsApp Admin</span>
+      </a>
     </div>
   );
 }
