@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { HeroSearch } from './components/HeroSearch';
 import { SearchResultModal } from './components/SearchResultModal';
@@ -48,13 +49,15 @@ export default function App() {
     getAdminPasswords(); // Ensures passwords key is initialized
   }, []);
 
+  const location = useLocation();
+
   // Initialization & URL Detection (?id=admin)
   useEffect(() => {
     refreshData();
 
-    // Check if URL contains ?id=admin
-    const urlParams = new URLSearchParams(window.location.search);
-    const hasAdminParam = urlParams.get('id') === 'admin' || window.location.href.includes('id=admin');
+    // Check if URL or hash contains ?id=admin
+    const searchParams = new URLSearchParams(location.search || window.location.search);
+    const hasAdminParam = searchParams.get('id') === 'admin' || window.location.href.includes('id=admin');
 
     // Check session storage for existing session
     const savedAdminSession = sessionStorage.getItem('ff_admin_logged_in') === 'true';
@@ -68,7 +71,7 @@ export default function App() {
         setIsAdminLoginOpen(true);
       }
     }
-  }, [refreshData]);
+  }, [refreshData, location.search]);
 
   // Execute Search
   const handleSearch = (query: string) => {
