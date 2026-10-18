@@ -223,7 +223,8 @@ export function approvePendingReport(id: string): { success: boolean; newScamRec
     scamAmountLkr: target.scamAmountLkr,
     scamType: target.scamType as ScamType,
     incidentDetails: target.incidentDetails,
-    proofUrls: target.proofUrls,
+    proofUrls: target.proofUrls || [],
+    avatarUrl: target.avatarUrl,
     dateReported: dateStr,
     status: 'Confirmed Scammer',
     reporterInfo: target.reporterContact ? `Reported by: ${target.reporterContact}` : 'Community Report',
@@ -238,6 +239,26 @@ export function approvePendingReport(id: string): { success: boolean; newScamRec
   savePendingReports(filteredPending);
 
   return { success: true, newScamRecord: newScam };
+}
+
+export function addScreenshotsToScamRecord(id: string, newImages: string[]): boolean {
+  const current = getScamRecords();
+  const index = current.findIndex((r) => r.id === id);
+  if (index === -1) return false;
+  const existing = current[index].proofUrls || [];
+  current[index].proofUrls = [...existing, ...newImages];
+  saveScamRecords(current);
+  return true;
+}
+
+export function addScreenshotsToPendingReport(id: string, newImages: string[]): boolean {
+  const current = getPendingReports();
+  const index = current.findIndex((r) => r.id === id);
+  if (index === -1) return false;
+  const existing = current[index].proofUrls || [];
+  current[index].proofUrls = [...existing, ...newImages];
+  savePendingReports(current);
+  return true;
 }
 
 export function deletePendingReport(id: string): boolean {

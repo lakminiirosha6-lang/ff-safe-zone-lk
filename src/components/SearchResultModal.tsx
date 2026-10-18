@@ -1,7 +1,8 @@
-import React from 'react';
-import { X, ShieldAlert, ShieldCheck, AlertTriangle, ExternalLink, MessageCircle, Copy, Check } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, ShieldAlert, ShieldCheck, AlertTriangle, ExternalLink, MessageCircle, Copy, Check, ZoomIn } from 'lucide-react';
 import { DetailedSearchResult } from '../utils/searchEngine';
 import { TrustedSeller, ScamRecord } from '../types';
+import { ImageLightbox } from './ImageLightbox';
 
 interface SearchResultModalProps {
   result: DetailedSearchResult | null;
@@ -16,7 +17,8 @@ export const SearchResultModal: React.FC<SearchResultModalProps> = ({
   onOpenReportModal,
   onBrowseTrusted,
 }) => {
-  const [copiedId, setCopiedId] = React.useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   if (!result) return null;
 
@@ -70,13 +72,28 @@ export const SearchResultModal: React.FC<SearchResultModalProps> = ({
                   className="bg-zinc-900/90 border border-red-900/40 rounded-lg p-5 space-y-4"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 pb-3">
-                    <div>
-                      <h4 className="text-base font-bold text-white">{scammer.name}</h4>
-                      {scammer.aliases && scammer.aliases.length > 0 && (
-                        <div className="text-xs text-zinc-400 mt-0.5">
-                          Aliases: {scammer.aliases.join(', ')}
+                    <div className="flex items-center gap-3">
+                      {(scammer.avatarUrl || (scammer.proofUrls && scammer.proofUrls[0])) ? (
+                        <img
+                          src={scammer.avatarUrl || scammer.proofUrls[0]}
+                          alt={scammer.name}
+                          className="w-12 h-12 rounded object-cover border border-red-500/50 cursor-pointer shrink-0"
+                          onClick={() => setLightboxImage(scammer.avatarUrl || scammer.proofUrls[0])}
+                          title="Click to zoom profile photo"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded bg-zinc-950 border border-red-900/60 flex items-center justify-center text-red-500 shrink-0">
+                          <ShieldAlert className="w-6 h-6" />
                         </div>
                       )}
+                      <div>
+                        <h4 className="text-base font-bold text-white">{scammer.name}</h4>
+                        {scammer.aliases && scammer.aliases.length > 0 && (
+                          <div className="text-xs text-zinc-400 mt-0.5">
+                            Aliases: {scammer.aliases.join(', ')}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <span className="text-xs font-bold font-mono uppercase px-2.5 py-1 bg-red-900/60 text-red-300 rounded border border-red-700/50">
                       {scammer.status}
@@ -141,22 +158,27 @@ export const SearchResultModal: React.FC<SearchResultModalProps> = ({
                     <p className="text-xs text-zinc-300 leading-relaxed">{scammer.incidentDetails}</p>
                   </div>
 
-                  {/* Proof Links */}
+                  {/* Proof Screenshots Gallery */}
                   {scammer.proofUrls && scammer.proofUrls.length > 0 && (
-                    <div className="text-xs">
-                      <span className="text-zinc-400 block mb-1.5 font-medium">Reported Evidence & Screenshots:</span>
+                    <div className="text-xs space-y-1.5">
+                      <span className="text-zinc-400 block font-medium">Evidence Photos & Screenshots:</span>
                       <div className="flex flex-wrap gap-2">
                         {scammer.proofUrls.map((url, idx) => (
-                          <a
+                          <div
                             key={idx}
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700 transition-colors"
+                            className="relative group rounded border border-zinc-700 overflow-hidden w-16 h-16 bg-zinc-950 cursor-pointer"
+                            onClick={() => setLightboxImage(url)}
+                            title={`Click to zoom proof #${idx + 1}`}
                           >
-                            <span>Evidence #{idx + 1}</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
+                            <img
+                              src={url}
+                              alt={`Evidence ${idx + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                              <ZoomIn className="w-4 h-4 text-white" />
+                            </div>
+                          </div>
                         ))}
                       </div>
                     </div>
@@ -376,6 +398,12 @@ export const SearchResultModal: React.FC<SearchResultModalProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Lightbox for viewing proof screenshots */}
+      <ImageLightbox
+        imageUrl={lightboxImage}
+        onClose={() => setLightboxImage(null)}
+      />
     </div>
   );
 };

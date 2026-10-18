@@ -22,7 +22,8 @@ export type ScamType =
   | 'Account Recovery Fraud (Retrieved after sale)'
   | 'Fake Payment Slip / FriMi Scam'
   | 'Diamond Top-Up Scam'
-  | 'Phishing Link / Login Hack';
+  | 'Phishing Link / Login Hack'
+  | string;
 
 export interface ScamRecord {
   id: string;
@@ -36,6 +37,7 @@ export interface ScamRecord {
   scamType: ScamType;
   incidentDetails: string;
   proofUrls: string[];
+  avatarUrl?: string;
   dateReported: string;
   status: 'Confirmed Scammer' | 'Banned Criminal' | 'Under Police Complaint';
   reporterInfo?: string;
@@ -52,6 +54,7 @@ export interface PendingReport {
   scamType: ScamType;
   incidentDetails: string;
   proofUrls: string[];
+  avatarUrl?: string;
   reporterContact: string;
   submittedAt: string;
 }
