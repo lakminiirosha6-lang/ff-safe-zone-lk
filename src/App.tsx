@@ -43,6 +43,10 @@ export default function App() {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [activeAdminKey, setActiveAdminKey] = useState<string>(() => sessionStorage.getItem('ff_admin_key') || '');
 
+  // Highlighted states from direct links (?seller=id or ?scam=id)
+  const [highlightedSellerId, setHighlightedSellerId] = useState<string | null>(null);
+  const [highlightedScamId, setHighlightedScamId] = useState<string | null>(null);
+
   // Reload data from localStorage
   const refreshData = useCallback(() => {
     setTrustedSellers(getTrustedSellers());
@@ -53,13 +57,18 @@ export default function App() {
 
   const location = useLocation();
 
-  // Initialization & URL Detection (?id=admin)
+  // Initialization & URL Detection (?id=admin, ?seller=id, ?scam=id)
   useEffect(() => {
     refreshData();
 
-    // Check if URL or hash contains ?id=admin
+    // Check search params
     const searchParams = new URLSearchParams(location.search || window.location.search);
     const hasAdminParam = searchParams.get('id') === 'admin' || window.location.href.includes('id=admin');
+    const sellerParam = searchParams.get('seller');
+    const scamParam = searchParams.get('scam');
+
+    if (sellerParam) setHighlightedSellerId(sellerParam);
+    if (scamParam) setHighlightedScamId(scamParam);
 
     // Check session storage for existing session
     const savedAdminSession = sessionStorage.getItem('ff_admin_logged_in') === 'true';
@@ -143,12 +152,16 @@ export default function App() {
         />
 
         {/* Section 1: Trusted Sellers Grid */}
-        <TrustedSellersGrid sellers={trustedSellers} />
+        <TrustedSellersGrid
+          sellers={trustedSellers}
+          highlightedSellerId={highlightedSellerId}
+        />
 
         {/* Section 2: Scam Blacklist Red Grid */}
         <ScamBlacklistGrid
           scams={scamRecords}
           onOpenReportModal={() => setIsReportModalOpen(true)}
+          highlightedScamId={highlightedScamId}
         />
 
         {/* Section 3: Safety Rules / Guidelines */}

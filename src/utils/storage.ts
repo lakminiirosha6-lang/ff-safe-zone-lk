@@ -100,6 +100,7 @@ export function addTrustedSeller(seller: Omit<TrustedSeller, 'id'>): TrustedSell
   const current = getTrustedSellers();
   const newSeller: TrustedSeller = {
     ...seller,
+    likes: 0,
     id: `ts-${Date.now()}`,
   };
   current.unshift(newSeller);
@@ -197,6 +198,7 @@ export function addScamRecord(record: Omit<ScamRecord, 'id'>): ScamRecord {
   const current = getScamRecords();
   const newRecord: ScamRecord = {
     ...record,
+    likes: 0,
     id: `scam-${Date.now()}`,
   };
   current.unshift(newRecord);

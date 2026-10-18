@@ -19,6 +19,7 @@ import {
   Lock,
   UserMinus,
   Images,
+  Pencil,
 } from 'lucide-react';
 import { TrustedSeller, ScamRecord, PendingReport, SellerRole, ScamType } from '../types';
 import {
@@ -26,9 +27,11 @@ import {
   addAdminPassword,
   deleteAdminPassword,
   addTrustedSeller,
+  updateTrustedSeller,
   deleteTrustedSeller,
   convertSellerToScammer,
   addScamRecord,
+  updateScamRecord,
   deleteScamRecord,
   approvePendingReport,
   deletePendingReport,
@@ -115,6 +118,49 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const appendFileInputRef = useRef<HTMLInputElement | null>(null);
   const directScamFileInputRef = useRef<HTMLInputElement | null>(null);
   const sellerLogoInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Edit states for Verified Sellers & Scammers
+  const [editingSeller, setEditingSeller] = useState<TrustedSeller | null>(null);
+  const [editingScam, setEditingScam] = useState<ScamRecord | null>(null);
+
+  const handleSaveEditSeller = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSeller) return;
+    updateTrustedSeller(editingSeller.id, {
+      name: editingSeller.name,
+      role: editingSeller.role,
+      whatsapp: editingSeller.whatsapp,
+      facebookUrl: editingSeller.facebookUrl,
+      freefireUid: editingSeller.freefireUid,
+      vouchesCount: Number(editingSeller.vouchesCount) || 1,
+      rating: Number(editingSeller.rating) || 5.0,
+      notes: editingSeller.notes,
+      logoUrl: editingSeller.logoUrl,
+      badgeLevel: editingSeller.badgeLevel,
+    });
+    onDataChanged();
+    showNotice(`Updated trusted seller "${editingSeller.name}" successfully.`, 'success');
+    setEditingSeller(null);
+  };
+
+  const handleSaveEditScam = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingScam) return;
+    updateScamRecord(editingScam.id, {
+      name: editingScam.name,
+      whatsapp: editingScam.whatsapp,
+      facebookUrl: editingScam.facebookUrl,
+      freefireUid: editingScam.freefireUid,
+      bankDetails: editingScam.bankDetails,
+      scamAmountLkr: Number(editingScam.scamAmountLkr) || 0,
+      scamType: editingScam.scamType,
+      incidentDetails: editingScam.incidentDetails,
+      avatarUrl: editingScam.avatarUrl,
+    });
+    onDataChanged();
+    showNotice(`Updated scam record "${editingScam.name}" successfully.`, 'success');
+    setEditingScam(null);
+  };
 
   // JSON Import state
   const [jsonInput, setJsonInput] = useState('');
@@ -936,6 +982,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                   <span>+ Screenshot</span>
                                 </button>
                                 <button
+                                  onClick={() => setEditingScam(scam)}
+                                  className="p-1 text-zinc-400 hover:text-yellow-400 transition-colors"
+                                  title="Edit scammer record"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </button>
+                                <button
                                   onClick={() => handleDeleteScam(scam.id, scam.name)}
                                   className="text-zinc-500 hover:text-red-400 p-1 transition-colors"
                                   title="Delete scammer record"
@@ -1174,6 +1227,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 >
                                   <UserMinus className="w-3 h-3 text-red-400" />
                                   <span>Scammer කරන්න</span>
+                                </button>
+                                <button
+                                  onClick={() => setEditingSeller(seller)}
+                                  className="p-1 text-zinc-400 hover:text-yellow-400 transition-colors"
+                                  title="Edit trusted seller"
+                                >
+                                  <Pencil className="w-4 h-4" />
                                 </button>
                                 <button
                                   onClick={() => handleDeleteSeller(seller.id, seller.name)}
@@ -1488,6 +1548,253 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   className="px-5 py-2 bg-red-600 hover:bg-red-500 text-white font-bold uppercase tracking-wider rounded"
                 >
                   Confirm & Move to Blacklist
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT TRUSTED SELLER MODAL */}
+      {editingSeller && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-zinc-900 border border-yellow-500/50 rounded-xl max-w-xl w-full p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <h3 className="text-sm font-bold uppercase text-yellow-400 font-gaming flex items-center gap-2">
+                <Pencil className="w-4 h-4" />
+                Edit Trusted Seller / Verified User: {editingSeller.name}
+              </h3>
+              <button onClick={() => setEditingSeller(null)} className="text-zinc-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditSeller} className="space-y-3">
+              <div>
+                <label className="block text-zinc-400 text-xs font-semibold mb-1">Seller Name & Tag</label>
+                <input
+                  type="text"
+                  value={editingSeller.name}
+                  onChange={(e) => setEditingSeller({ ...editingSeller, name: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded text-xs text-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-zinc-400 text-xs font-semibold mb-1">Role</label>
+                  <select
+                    value={editingSeller.role}
+                    onChange={(e) => setEditingSeller({ ...editingSeller, role: e.target.value as SellerRole })}
+                    className="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded text-xs text-white"
+                  >
+                    <option value="Official Middleman">Official Middleman</option>
+                    <option value="Diamond Top-Up">Diamond Top-Up</option>
+                    <option value="Account Dealer">Account Dealer</option>
+                    <option value="Guild Leader">Guild Leader</option>
+                    <option value="Verified Trader">Verified Trader</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-zinc-400 text-xs font-semibold mb-1">Badge Level</label>
+                  <select
+                    value={editingSeller.badgeLevel}
+                    onChange={(e) => setEditingSeller({ ...editingSeller, badgeLevel: e.target.value as any })}
+                    className="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded text-xs text-white"
+                  >
+                    <option value="Diamond">Diamond</option>
+                    <option value="Gold">Gold</option>
+                    <option value="Master">Master</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-zinc-400 text-xs font-semibold mb-1">WhatsApp</label>
+                  <input
+                    type="text"
+                    value={editingSeller.whatsapp}
+                    onChange={(e) => setEditingSeller({ ...editingSeller, whatsapp: e.target.value })}
+                    required
+                    className="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded text-xs text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-zinc-400 text-xs font-semibold mb-1">Free Fire UID</label>
+                  <input
+                    type="text"
+                    value={editingSeller.freefireUid}
+                    onChange={(e) => setEditingSeller({ ...editingSeller, freefireUid: e.target.value })}
+                    className="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded text-xs text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-zinc-400 text-xs font-semibold mb-1">Vouches Count</label>
+                  <input
+                    type="number"
+                    value={editingSeller.vouchesCount}
+                    onChange={(e) => setEditingSeller({ ...editingSeller, vouchesCount: Number(e.target.value) })}
+                    className="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded text-xs text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-zinc-400 text-xs font-semibold mb-1">Facebook URL</label>
+                  <input
+                    type="url"
+                    value={editingSeller.facebookUrl}
+                    onChange={(e) => setEditingSeller({ ...editingSeller, facebookUrl: e.target.value })}
+                    className="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded text-xs text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 text-xs font-semibold mb-1">Store Logo URL / Image</label>
+                <input
+                  type="text"
+                  value={editingSeller.logoUrl || ''}
+                  onChange={(e) => setEditingSeller({ ...editingSeller, logoUrl: e.target.value })}
+                  placeholder="Image URL or uploaded base64"
+                  className="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded text-xs text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 text-xs font-semibold mb-1">Notes / Description</label>
+                <textarea
+                  rows={2}
+                  value={editingSeller.notes || ''}
+                  onChange={(e) => setEditingSeller({ ...editingSeller, notes: e.target.value })}
+                  className="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded text-xs text-white"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingSeller(null)}
+                  className="px-4 py-2 bg-zinc-800 text-zinc-300 rounded text-xs font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-yellow-400 hover:bg-yellow-300 text-zinc-950 rounded text-xs font-bold uppercase"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT SCAM RECORD MODAL */}
+      {editingScam && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-zinc-900 border border-red-500/50 rounded-xl max-w-xl w-full p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <h3 className="text-sm font-bold uppercase text-red-400 font-gaming flex items-center gap-2">
+                <Pencil className="w-4 h-4" />
+                Edit Scammer Record: {editingScam.name}
+              </h3>
+              <button onClick={() => setEditingScam(null)} className="text-zinc-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditScam} className="space-y-3">
+              <div>
+                <label className="block text-zinc-400 text-xs font-semibold mb-1">Scammer Name / Handle</label>
+                <input
+                  type="text"
+                  value={editingScam.name}
+                  onChange={(e) => setEditingScam({ ...editingScam, name: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded text-xs text-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-zinc-400 text-xs font-semibold mb-1">WhatsApp</label>
+                  <input
+                    type="text"
+                    value={editingScam.whatsapp}
+                    onChange={(e) => setEditingScam({ ...editingScam, whatsapp: e.target.value })}
+                    className="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded text-xs text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-zinc-400 text-xs font-semibold mb-1">Free Fire UID</label>
+                  <input
+                    type="text"
+                    value={editingScam.freefireUid || ''}
+                    onChange={(e) => setEditingScam({ ...editingScam, freefireUid: e.target.value })}
+                    className="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded text-xs text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-zinc-400 text-xs font-semibold mb-1">Scam Amount (LKR)</label>
+                  <input
+                    type="number"
+                    value={editingScam.scamAmountLkr}
+                    onChange={(e) => setEditingScam({ ...editingScam, scamAmountLkr: Number(e.target.value) })}
+                    className="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded text-xs text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-zinc-400 text-xs font-semibold mb-1">Scam Type</label>
+                  <input
+                    type="text"
+                    value={editingScam.scamType}
+                    onChange={(e) => setEditingScam({ ...editingScam, scamType: e.target.value as any })}
+                    className="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded text-xs text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 text-xs font-semibold mb-1">Bank & eZ Cash Details</label>
+                <input
+                  type="text"
+                  value={editingScam.bankDetails}
+                  onChange={(e) => setEditingScam({ ...editingScam, bankDetails: e.target.value })}
+                  className="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded text-xs text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 text-xs font-semibold mb-1">Incident Details / Summary</label>
+                <textarea
+                  rows={3}
+                  value={editingScam.incidentDetails}
+                  onChange={(e) => setEditingScam({ ...editingScam, incidentDetails: e.target.value })}
+                  className="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded text-xs text-white"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingScam(null)}
+                  className="px-4 py-2 bg-zinc-800 text-zinc-300 rounded text-xs font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-red-600 hover:bg-red-500 text-white rounded text-xs font-bold uppercase"
+                >
+                  Save Changes
                 </button>
               </div>
             </form>

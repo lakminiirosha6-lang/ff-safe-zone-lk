@@ -1,14 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { TrustedSeller, SellerRole } from '../types';
-import { ShieldCheck, MessageCircle, ExternalLink, Copy, Check, Search, Images, Heart, Share2 } from 'lucide-react';
+import { ShieldCheck, MessageCircle, ExternalLink, Copy, Check, Search, Images, Heart, Share2, Flame } from 'lucide-react';
 import { ImageLightbox } from './ImageLightbox';
 import { getLikedIds, toggleSellerLike } from '../utils/storage';
 
 interface TrustedSellersGridProps {
   sellers: TrustedSeller[];
+  highlightedSellerId?: string | null;
 }
 
-export const TrustedSellersGrid: React.FC<TrustedSellersGridProps> = ({ sellers }) => {
+export const TrustedSellersGrid: React.FC<TrustedSellersGridProps> = ({ sellers, highlightedSellerId }) => {
   const [selectedRole, setSelectedRole] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -24,7 +25,7 @@ export const TrustedSellersGrid: React.FC<TrustedSellersGridProps> = ({ sellers 
   const [likesCountMap, setLikesCountMap] = useState<Record<string, number>>(() => {
     const map: Record<string, number> = {};
     sellers.forEach((s) => {
-      map[s.id] = s.likes ?? 42;
+      map[s.id] = s.likes ?? 0;
     });
     return map;
   });
@@ -48,6 +49,13 @@ export const TrustedSellersGrid: React.FC<TrustedSellersGridProps> = ({ sellers 
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  const handleCopyProfileLink = (seller: TrustedSeller) => {
+    const link = `${window.location.origin}${window.location.pathname}?seller=${seller.id}`;
+    navigator.clipboard.writeText(link);
+    setCopiedId(`link-${seller.id}`);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   const handleLikeToggle = (id: string) => {
     const res = toggleSellerLike(id);
     setLikedMap((prev) => ({ ...prev, [id]: res.isLiked }));
@@ -55,11 +63,12 @@ export const TrustedSellersGrid: React.FC<TrustedSellersGridProps> = ({ sellers 
   };
 
   const handleShare = (seller: TrustedSeller) => {
-    const text = `Trusted Seller / Middleman: ${seller.name} (${seller.role})\nWhatsApp: ${seller.whatsapp}\nVerified Free Fire Safe Zone LK`;
+    const link = `${window.location.origin}${window.location.pathname}?seller=${seller.id}`;
+    const text = `🔥 Verified Trusted Seller: ${seller.name} (${seller.role})\nWhatsApp: ${seller.whatsapp}\nView profile: ${link}`;
     if (navigator.share) {
-      navigator.share({ title: seller.name, text, url: window.location.href }).catch(() => {});
+      navigator.share({ title: seller.name, text, url: link }).catch(() => {});
     } else {
-      navigator.clipboard.writeText(`${text}\n${window.location.href}`);
+      navigator.clipboard.writeText(text);
       setCopiedId(`share-${seller.id}`);
       setTimeout(() => setCopiedId(null), 2000);
     }
@@ -80,6 +89,22 @@ export const TrustedSellersGrid: React.FC<TrustedSellersGridProps> = ({ sellers 
       setGalleryTitle(`${seller.name} - Verification & Proof Photos`);
     }
   };
+
+  // If highlightedSellerId is provided, open gallery automatically if photos exist
+  useEffect(() => {
+    if (highlightedSellerId && sellers.length > 0) {
+      const match = sellers.find((s) => s.id === highlightedSellerId);
+      if (match) {
+        const el = document.getElementById(`seller-card-${match.id}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        setTimeout(() => {
+          openSellerGallery(match, 0);
+        }, 500);
+      }
+    }
+  }, [highlightedSellerId, sellers]);
 
   const filteredSellers = useMemo(() => {
     return sellers.filter((seller) => {
@@ -156,13 +181,22 @@ export const TrustedSellersGrid: React.FC<TrustedSellersGridProps> = ({ sellers 
                 ...(seller.photos || []),
               ];
               const isLiked = likedMap[seller.id] || false;
-              const likesCount = likesCountMap[seller.id] ?? (seller.likes ?? 42);
+              const likesCount = likesCountMap[seller.id] ?? (seller.likes ?? 0);
+              const isPopular = seller.vouchesCount >= 50 || likesCount >= 10;
+              const isHighlighted = highlightedSellerId === seller.id;
 
               return (
                 <div
                   key={seller.id}
-                  className={`bg-zinc-900/80 border rounded-xl overflow-hidden flex flex-col justify-between transition-all hover:border-yellow-500/60 hover:shadow-[0_0_25px_rgba(250,204,21,0.12)] ${
-                    seller.isOfficialMiddleman ? 'border-yellow-500/50' : 'border-zinc-800'
+                  id={`seller-card-${seller.id}`}
+                  className={`rounded-xl overflow-hidden flex flex-col justify-between transition-all ${
+                    isHighlighted
+                      ? 'ring-4 ring-yellow-400 scale-[1.02] shadow-[0_0_50px_rgba(250,204,21,0.5)] bg-zinc-900 border-2 border-yellow-400'
+                      : isPopular
+                      ? 'bg-gradient-to-b from-yellow-500/15 via-zinc-900 to-zinc-900 border-2 border-yellow-400 ring-2 ring-yellow-400/30 shadow-[0_0_30px_rgba(250,204,21,0.2)]'
+                      : seller.isOfficialMiddleman
+                      ? 'bg-zinc-900/90 border border-yellow-500/50 hover:border-yellow-400 hover:shadow-[0_0_25px_rgba(250,204,21,0.15)]'
+                      : 'bg-zinc-900/80 border border-zinc-800 hover:border-zinc-700'
                   }`}
                 >
                   {/* PROMINENT 1:1 SQUARE LOGO / PROOF AT THE TOP */}
@@ -187,12 +221,20 @@ export const TrustedSellersGrid: React.FC<TrustedSellersGridProps> = ({ sellers 
                       </div>
                     )}
 
-                    {/* Badge Overlay */}
-                    <div className="absolute top-3 left-3 bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-md border border-yellow-500/40 flex items-center gap-1.5 shadow-md">
-                      <ShieldCheck className="w-3.5 h-3.5 text-yellow-400" />
-                      <span className="text-[11px] font-bold text-yellow-400 uppercase font-gaming tracking-wide">
-                        {seller.badgeLevel} Verified
-                      </span>
+                    {/* Badges Overlay */}
+                    <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+                      {isPopular && (
+                        <div className="bg-yellow-400 text-zinc-950 font-gaming px-2.5 py-1 rounded-md font-bold text-[11px] uppercase tracking-wider flex items-center gap-1 shadow-lg animate-pulse">
+                          <Flame className="w-3.5 h-3.5 fill-current" />
+                          <span>Popular Seller 🔥</span>
+                        </div>
+                      )}
+                      <div className="bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-md border border-yellow-500/40 flex items-center gap-1.5 shadow-md">
+                        <ShieldCheck className="w-3.5 h-3.5 text-yellow-400" />
+                        <span className="text-[11px] font-bold text-yellow-400 uppercase font-gaming tracking-wide">
+                          {seller.badgeLevel} Verified
+                        </span>
+                      </div>
                     </div>
 
                     {/* Like & Share Quick Buttons on Image */}
@@ -308,29 +350,48 @@ export const TrustedSellersGrid: React.FC<TrustedSellersGridProps> = ({ sellers 
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="pt-3 border-t border-zinc-800 flex items-center gap-2">
-                      <a
-                        href={`https://wa.me/94${seller.whatsapp.replace(/\D/g, '').replace(/^0/, '')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex-1 py-2 px-3 bg-green-600 hover:bg-green-500 text-white font-semibold text-xs rounded transition-colors flex items-center justify-center gap-1.5 shadow-sm"
-                      >
-                        <MessageCircle className="w-3.5 h-3.5" />
-                        <span>Direct WhatsApp</span>
-                      </a>
-
-                      {seller.facebookUrl && (
+                    <div className="pt-3 border-t border-zinc-800 space-y-2">
+                      <div className="flex items-center gap-2">
                         <a
-                          href={seller.facebookUrl}
+                          href={`https://wa.me/94${seller.whatsapp.replace(/\D/g, '').replace(/^0/, '')}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded border border-zinc-700 transition-colors"
-                          title="Open Facebook Profile"
-                          aria-label="Open Facebook Profile"
+                          className="flex-1 py-2 px-3 bg-green-600 hover:bg-green-500 text-white font-semibold text-xs rounded transition-colors flex items-center justify-center gap-1.5 shadow-sm"
                         >
-                          <ExternalLink className="w-4 h-4" />
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          <span>Direct WhatsApp</span>
                         </a>
-                      )}
+
+                        {seller.facebookUrl && (
+                          <a
+                            href={seller.facebookUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded border border-zinc-700 transition-colors"
+                            title="Open Facebook Profile"
+                            aria-label="Open Facebook Profile"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={() => handleCopyProfileLink(seller)}
+                        className="w-full py-1.5 bg-zinc-950 hover:bg-zinc-900 text-yellow-400 border border-yellow-500/30 font-semibold text-xs rounded transition-colors flex items-center justify-center gap-1"
+                      >
+                        {copiedId === `link-${seller.id}` ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-green-400" />
+                            <span className="text-green-400">Profile Link Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Copy Direct Share Link</span>
+                          </>
+                        )}
+                      </button>
                     </div>
                   </div>
                 </div>
