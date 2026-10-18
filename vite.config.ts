@@ -5,7 +5,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    base: './',
+    base: '/ff-safe-zone-lk/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
