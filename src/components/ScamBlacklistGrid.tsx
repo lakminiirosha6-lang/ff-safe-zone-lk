@@ -52,7 +52,7 @@ export const ScamBlacklistGrid: React.FC<ScamBlacklistGridProps> = ({ scams, onO
   };
 
   const handleCopyProfileLink = (scam: ScamRecord) => {
-    const link = `${window.location.origin}${window.location.pathname}?scam=${scam.id}`;
+    const link = `https://tinyurl.com/FFSafeZone?scam=${scam.id}`;
     navigator.clipboard.writeText(link);
     setCopiedId(`link-${scam.id}`);
     setTimeout(() => setCopiedId(null), 2000);
@@ -65,8 +65,8 @@ export const ScamBlacklistGrid: React.FC<ScamBlacklistGridProps> = ({ scams, onO
   };
 
   const handleShare = (scam: ScamRecord) => {
-    const link = `${window.location.origin}${window.location.pathname}?scam=${scam.id}`;
-    const text = `🚨 SCAMMER ALERT: ${scam.name} (${scam.scamType})\nWhatsApp: ${scam.whatsapp}\nView evidence: ${link}`;
+    const link = `https://tinyurl.com/FFSafeZone?scam=${scam.id}`;
+    const text = `🚨 SCAMMER ALERT: ${scam.name} (${scam.scamType})\nWhatsApp: ${scam.whatsapp}\nView evidence & Photo: ${link}`;
     if (navigator.share) {
       navigator.share({ title: scam.name, text, url: link }).catch(() => {});
     } else {

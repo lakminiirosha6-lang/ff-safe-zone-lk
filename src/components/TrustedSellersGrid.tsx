@@ -50,7 +50,7 @@ export const TrustedSellersGrid: React.FC<TrustedSellersGridProps> = ({ sellers,
   };
 
   const handleCopyProfileLink = (seller: TrustedSeller) => {
-    const link = `${window.location.origin}${window.location.pathname}?seller=${seller.id}`;
+    const link = `https://tinyurl.com/FFSafeZone?seller=${seller.id}`;
     navigator.clipboard.writeText(link);
     setCopiedId(`link-${seller.id}`);
     setTimeout(() => setCopiedId(null), 2000);
@@ -63,8 +63,8 @@ export const TrustedSellersGrid: React.FC<TrustedSellersGridProps> = ({ sellers,
   };
 
   const handleShare = (seller: TrustedSeller) => {
-    const link = `${window.location.origin}${window.location.pathname}?seller=${seller.id}`;
-    const text = `🔥 Verified Trusted Seller: ${seller.name} (${seller.role})\nWhatsApp: ${seller.whatsapp}\nView profile: ${link}`;
+    const link = `https://tinyurl.com/FFSafeZone?seller=${seller.id}`;
+    const text = `🔥 Verified Trusted Seller: ${seller.name} (${seller.role})\nWhatsApp: ${seller.whatsapp}\nView profile & Photo: ${link}`;
     if (navigator.share) {
       navigator.share({ title: seller.name, text, url: link }).catch(() => {});
     } else {
